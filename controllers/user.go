@@ -11,105 +11,112 @@ import (
 	"gorm.io/gorm"
 )
 
-func SetUserRoutes(r *gin.Engine) {
+func SetUserRoutes(r *gin.Engine, dbInstance *gorm.DB) {
 	g := r.Group("/users")
-	g.POST("", CreateUserHandler)
-	g.GET("", ListUsersHandler)
-	g.GET("/:id", GetUserHandler)
-	g.PATCH("/:id", UpdateUserHandler)
-	g.DELETE("/:id", DeleteUserHandler)
+	g.POST("", createUserHandler(dbInstance))
+	g.GET("", listUsersHandler(dbInstance))
+	g.GET("/:id", getUserHandler(dbInstance))
+	g.PATCH("/:id", updateUserHandler(dbInstance))
+	g.DELETE("/:id", deleteUserHandler(dbInstance))
 }
 
-func CreateUserHandler(c *gin.Context) {
-	input := new(models.UserCreate)
+func createUserHandler(dbInstance *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		input := new(models.UserCreate)
 
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		user := models.NewUser(*input)
+
+		id, err := db.CreateUser(dbInstance, user)
+
+		if err != nil {
+			handleDbError(c, err)
+			return
+		}
+
+		c.JSON(http.StatusCreated, id)
 	}
-
-	user := models.NewUser(*input)
-
-	id, err := db.CreateUser(user)
-
-	if err != nil {
-		handleDbError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, id)
 }
 
-func ListUsersHandler(c *gin.Context) {
-	users, err := db.ListUsers()
+func listUsersHandler(dbInstance *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		users, err := db.ListUsers(dbInstance)
 
-	if err != nil {
-		handleDbError(c, err)
-		return
+		if err != nil {
+			handleDbError(c, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, users)
 	}
 
-	c.JSON(http.StatusOK, users)
 }
 
-func GetUserHandler(c *gin.Context) {
-	uuid, err := uuid.Parse(c.Param("id"))
+func getUserHandler(dbInstance *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uuid, err := uuid.Parse(c.Param("id"))
 
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		user, err := db.GetUser(dbInstance, uuid)
+
+		if err != nil {
+			handleDbError(c, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, user)
 	}
-
-	user, err := db.GetUser(uuid)
-
-	if err != nil {
-		handleDbError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, user)
 }
 
-func UpdateUserHandler(c *gin.Context) {
-	uuid, err := uuid.Parse(c.Param("id"))
+func updateUserHandler(dbInstance *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uuid, err := uuid.Parse(c.Param("id"))
 
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		input := new(models.UserCreate)
+
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if err := db.UpdateUser(dbInstance, uuid, *input); err != nil {
+			handleDbError(c, err)
+			return
+		}
+
+		c.Status(http.StatusOK)
 	}
-
-	input := new(models.UserCreate)
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	err = db.UpdateUser(uuid, *input)
-
-	if err != nil {
-		handleDbError(c, err)
-		return
-	}
-
-	c.Status(http.StatusOK)
 }
 
-func DeleteUserHandler(c *gin.Context) {
-	uuid, err := uuid.Parse(c.Param("id"))
+func deleteUserHandler(dbInstance *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uuid, err := uuid.Parse(c.Param("id"))
 
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if err := db.DeleteUser(dbInstance, uuid); err != nil {
+			handleDbError(c, err)
+			return
+		}
+
+		c.Status(http.StatusOK)
 	}
-
-	err = db.DeleteUser(uuid)
-
-	if err != nil {
-		handleDbError(c, err)
-		return
-	}
-
-	c.Status(http.StatusOK)
 }
 
 func handleDbError(c *gin.Context, err error) {

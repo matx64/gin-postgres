@@ -1,7 +1,8 @@
 package db
 
 import (
-	"log"
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/matx64/gin-postgres/models"
@@ -9,21 +10,20 @@ import (
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
-
-func InitDb() {
+func NewDB() (*gorm.DB, error) {
 	dsn := os.Getenv("DB_URL")
+	if dsn == "" {
+		return nil, errors.New("DB_URL environment variable not set")
+	}
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("❌ Failed to connect to database. \n", err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	DB = db
+	if err := db.AutoMigrate(&models.User{}); err != nil {
+		return nil, fmt.Errorf("failed to auto-migrate database: %w", err)
+	}
 
-	migrate()
-}
-
-func migrate() {
-	DB.AutoMigrate(&models.User{})
+	return db, nil
 }

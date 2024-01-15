@@ -3,32 +3,33 @@ package db
 import (
 	"github.com/google/uuid"
 	"github.com/matx64/gin-postgres/models"
+	"gorm.io/gorm"
 )
 
-func CreateUser(user models.User) (uuid.UUID, error) {
-	result := DB.Create(user)
+func CreateUser(db *gorm.DB, user models.User) (uuid.UUID, error) {
+	result := db.Create(user)
 
 	return user.ID, result.Error
 }
 
-func ListUsers() ([]models.User, error) {
+func ListUsers(db *gorm.DB) ([]models.User, error) {
 	users := []models.User{}
 
-	result := DB.Find(&users)
+	result := db.Find(&users)
 
 	return users, result.Error
 }
 
-func GetUser(uuid uuid.UUID) (models.User, error) {
+func GetUser(db *gorm.DB, uuid uuid.UUID) (models.User, error) {
 	user := models.User{}
 
-	result := DB.First(&user, uuid)
+	result := db.First(&user, uuid)
 
 	return user, result.Error
 }
 
-func UpdateUser(uuid uuid.UUID, input models.UserCreate) error {
-	user, err := GetUser(uuid)
+func UpdateUser(db *gorm.DB, uuid uuid.UUID, input models.UserCreate) error {
+	user, err := GetUser(db, uuid)
 
 	if err != nil {
 		return err
@@ -36,19 +37,19 @@ func UpdateUser(uuid uuid.UUID, input models.UserCreate) error {
 
 	updatedUser := models.User{Name: input.Name, Email: input.Email, Password: input.Password}
 
-	result := DB.Model(&user).Updates(&updatedUser)
+	result := db.Model(&user).Updates(&updatedUser)
 
 	return result.Error
 }
 
-func DeleteUser(uuid uuid.UUID) error {
-	_, err := GetUser(uuid)
+func DeleteUser(db *gorm.DB, uuid uuid.UUID) error {
+	_, err := GetUser(db, uuid)
 
 	if err != nil {
 		return err
 	}
 
-	result := DB.Delete(&models.User{}, uuid)
+	result := db.Delete(&models.User{}, uuid)
 
 	return result.Error
 }

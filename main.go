@@ -15,9 +15,12 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	db.InitDb()
+	db, err := db.NewDB()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	r := gin.Default()
-	controllers.SetRoutes(r)
+	controllers.SetRoutes(r, db)
 	r.Run(":1337")
 }
